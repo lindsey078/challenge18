@@ -1,30 +1,41 @@
-import jwt from 'jsonwebtoken';
+import { AuthenticationError } from 'apollo-server-express';
 import { Request } from 'express';
+import * as jwt from 'jsonwebtoken'; // ✅ FIXED
 
-const secret = 'your_secret_key'; // Use an environment variable in production
+const secret = 'mysecretsshhhhh';
 const expiration = '2h';
 
-export const authMiddleware = ({ req }: { req: Request }) => {
-    let token = req.headers.authorization || '';
+export interface AuthRequest extends Request {
+  user?: any;
+}
 
-    if (token.startsWith('Bearer ')) {
-        token = token.split(' ')[1];
-    }
+const authMiddleware = ({ req }: { req: AuthRequest }) => {
+  let token = req.body.token || req.query.token || req.headers.authorization;
 
-    if (!token) {
-        return req;
-    }
+  if (req.headers.authorization) {
+    token = token.split(' ').pop()?.trim();
+  }
 
-    try {
-        const { data } = jwt.verify(token, secret) as any;
-        req.user = data;
-    } catch {
-        console.log('Invalid token');
-    }
-
+  if (!token) {
     return req;
+  }
+
+  try {
+    const { data } = jwt.verify(token, secret) as { data: any };
+    req.user = data;
+  } catch {
+    console.log('Invalid token');
+  }
+
+  return req;
 };
 
-export const signToken = (user: any) => {
-    return jwt.sign({ data: user }, secret, { expiresIn: expiration });
+const signToken = ({ username, email, _id }: any) => {
+  const payload = { username, email, _id };
+  return jwt.sign({ data: payload }, secret, { expiresIn: expiration });
+};
+
+export default {
+  authMiddleware,
+  signToken,
 };
